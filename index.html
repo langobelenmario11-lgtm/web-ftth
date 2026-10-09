@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Perencanaan Infrastruktur Jaringan FO</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Leaflet CSS for Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Google Font Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <header class="bg-indigo-900 text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="bg-indigo-800 p-2.5 rounded-xl border border-indigo-700 shadow-inner">
+                    <i class="fa-solid fa-network-wired text-cyan-400 text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight">NetPlan Dashboard</h1>
+                    <p class="text-xs text-indigo-200">Manajemen Perencanaan Infrastruktur Fiber Optic - mario</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3">
+                <button onclick="openExportModal()" class="inline-flex items-center space-x-2 bg-indigo-700 hover:bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition shadow-sm border border-indigo-600">
+                    <i class="fa-solid fa-file-export"></i>
+                    <span>Ekspor / Impor</span>
+                </button>
+                <button onclick="resetAllData()" class="inline-flex items-center space-x-2 bg-rose-600/80 hover:bg-rose-600 text-white text-sm font-medium px-3 py-2 rounded-lg transition shadow-sm" title="Reset Semua Data">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6">
+        
+        <!-- Navigation Tabs -->
+        <div class="flex overflow-x-auto space-x-2 bg-white p-2 rounded-2xl shadow-sm border border-slate-200">
+            <button onclick="switchTab('dashboard')" id="btn-dashboard" class="tab-btn flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition bg-indigo-600 text-white shadow-sm whitespace-nowrap">
+                <i class="fa-solid fa-chart-pie"></i>
+                <span>Ringkasan & Peta</span>
+            </button>
+            <button onclick="switchTab('kabel')" id="btn-kabel" class="tab-btn flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition text-slate-600 hover:bg-slate-100 whitespace-nowrap">
+                <i class="fa-solid fa-wave-square"></i>
+                <span>Kabel</span>
+            </button>
+            <button onclick="switchTab('tiang')" id="btn-tiang" class="tab-btn flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition text-slate-600 hover:bg-slate-100 whitespace-nowrap">
+                <i class="fa-solid fa-tower-broadcast"></i>
+                <span>Tiang</span>
+            </button>
+            <button onclick="switchTab('odc')" id="btn-odc" class="tab-btn flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition text-slate-600 hover:bg-slate-100 whitespace-nowrap">
+                <i class="fa-solid fa-box-archive"></i>
+                <span>ODC</span>
+            </button>
+            <button onclick="switchTab('odp')" id="btn-odp" class="tab-btn flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition text-slate-600 hover:bg-slate-100 whitespace-nowrap">
+                <i class="fa-solid fa-boxes-stacked"></i>
+                <span>ODP</span>
+            </button>
+            <button onclick="switchTab('rumah')" id="btn-rumah" class="tab-btn flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition text-slate-600 hover:bg-slate-100 whitespace-nowrap">
+                <i class="fa-solid fa-house-chimney"></i>
+                <span>Rumah (Homepass)</span>
+            </button>
+        </div>
+
+        <div id="tab-dashboard" class="tab-content active space-y-6">
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                    <div class="p-3.5 bg-blue-50 text-blue-600 rounded-xl">
+                        <i class="fa-solid fa-wave-square text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium text-slate-500">Total Kabel</p>
+                        <h3 id="stat-kabel" class="text-xl font-bold text-slate-800">0 m</h3>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                    <div class="p-3.5 bg-amber-50 text-amber-600 rounded-xl">
+                        <i class="fa-solid fa-tower-broadcast text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium text-slate-500">Jumlah Tiang</p>
+                        <h3 id="stat-tiang" class="text-xl font-bold text-slate-800">0 Unit</h3>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                    <div class="p-3.5 bg-purple-50 text-purple-600 rounded-xl">
+                        <i class="fa-solid fa-box-archive text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium text-slate-500">Jumlah ODC</p>
+                        <h3 id="stat-odc" class="text-xl font-bold text-slate-800">0 Unit</h3>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                    <div class="p-3.5 bg-emerald-50 text-emerald-600 rounded-xl">
+                        <i class="fa-solid fa-boxes-stacked text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium text-slate-500">Jumlah ODP</p>
+                        <h3 id="stat-odp" class="text-xl font-bold text-slate-800">0 Unit</h3>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center space-x-4 sm:col-span-2 lg:col-span-1">
+                    <div class="p-3.5 bg-rose-50 text-rose-600 rounded-xl">
+                        <i class="fa-solid fa-house-chimney text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium text-slate-500">Total Rumah</p>
+                        <h3 id="stat-rumah" class="text-xl font-bold text-slate-800">0 Unit</h3>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Interactive Map Section -->
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-800">Peta Sebaran Infrastruktur</h2>
+                        <p class="text-xs text-slate-500">Visualisasi titik lokasi ODC, ODP, Tiang, dan Rumah terencana.</p>
+                    </div>
+                    <button onclick="initMap()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg transition font-medium">
+                        <i class="fa-solid fa-arrows-rotate mr-1"></i> Segarkan Peta
+                    </button>
+                </div>
+                <div id="map" class="w-full h-[420px] rounded-xl border border-slate-200 z-10"></div>
+            </div>
+        </div>
+
+        <div id="tab-kabel" class="tab-content space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Form Input -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-fit">
+                    <h2 id="form-title-kabel" class="text-base font-bold text-slate-800 mb-4 flex items-center space-x-2">
+                        <i class="fa-solid fa-plus-circle text-indigo-600"></i>
+                        <span>Tambah Data Kabel</span>
+                    </h2>
+                    <form id="form-kabel" onsubmit="saveData(event, 'kabel')" class="space-y-4">
+                        <input type="hidden" id="kabel-id">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Jenis Kabel</label>
+                            <select id="kabel-jenis" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                <option value="">Pilih Jenis Kabel</option>
+                                <option value="FO 24 Core">FO 24 Core</option>
+                                <option value="FO 12 Core">FO 12 Core</option>
+                                <option value="FO 48 Core">FO 48 Core</option>
+                                <option value="Drop Cable 1 Core">Drop Cable 1 Core</option>
+                                <option value="Drop Cable 2 Core">Drop Cable 2 Core</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Panjang Kabel (Meter)</label>
+                            <input type="number" step="0.1" id="kabel-panjang" required placeholder="Contoh: 250" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Lokasi / Jalur Kabel</label>
+                            <input type="text" id="kabel-lokasi" required placeholder="Contoh: Jl. Ahmad Yani - Gg. Merpati" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div class="flex space-x-2 pt-2">
+                            <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-sm transition shadow-sm">Simpan Data</button>
+                            <button type="button" onclick="resetForm('kabel')" class="hidden id-cancel-kabel bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium px-4 py-2.5 rounded-xl text-sm transition">Batal</button>
+                        </div>
+                    </form>
+                </div>
+                <!-- Table Rekapitulasi -->
+                <div class="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-4">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                        <h2 class="text-base font-bold text-slate-800">Daftar Rekapitulasi Kabel</h2>
+                        <div class="w-full sm:w-64">
+                            <input type="text" id="search-kabel" onkeyup="filterTable('kabel')" placeholder="Cari kabel..." class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto rounded-xl border border-slate-100">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead>
+                                <tr class="bg-slate-100 text-slate-600 text-xs font-semibold uppercase">
+                                    <th class="p-3">No</th>
+                                    <th class="p-3">Jenis Kabel</th>
+                                    <th class="p-3">Panjang (m)</th>
+                                    <th class="p-3">Lokasi / Jalur</th>
+                                    <th class="p-3 text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body-kabel" class="divide-y divide-slate-100 text-slate-700">
+                                <!-- Data injected via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-tiang" class="tab-content space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Form Input -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-fit">
+                    <h2 id="form-title-tiang" class="text-base font-bold text-slate-800 mb-4 flex items-center space-x-2">
+                        <i class="fa-solid fa-plus-circle text-indigo-600"></i>
+                        <span>Tambah Data Tiang</span>
+                    </h2>
+                    <form id="form-tiang" onsubmit="saveData(event, 'tiang')" class="space-y-4">
+                        <input type="hidden" id="tiang-id">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Kode Tiang</label>
+                            <input type="text" id="tiang-kode" required placeholder="Contoh: TGN-001" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Lokasi Tiang</label>
+                            <input type="text" id="tiang-lokasi" required placeholder="Contoh: Depan Kantor Kelurahan" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Latitude</label>
+                                <input type="number" step="any" id="tiang-lat" placeholder="-0.8912" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Longitude</label>
+                                <input type="number" step="any" id="tiang-lng" placeholder="131.2511" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                        </div>
+                        <div class="flex space-x-2 pt-2">
+                            <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-sm transition shadow-sm">Simpan Data</button>
+                            <button type="button" onclick="resetForm('tiang')" class="hidden id-cancel-tiang bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium px-4 py-2.5 rounded-xl text-sm transition">Batal</button>
+                        </div>
+                    </form>
+                </div>
+                <!-- Table Rekapitulasi -->
+                <div class="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-4">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                        <h2 class="text-base font-bold text-slate-800">Daftar Rekapitulasi Tiang</h2>
+                        <div class="w-full sm:w-64">
+                            <input type="text" id="search-tiang" onkeyup="filterTable('tiang')" placeholder="Cari tiang..." class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto rounded-xl border border-slate-100">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead>
+                                <tr class="bg-slate-100 text-slate-600 text-xs font-semibold uppercase">
+                                    <th class="p-3">No</th>
+                                    <th class="p-3">Kode Tiang</th>
+                                    <th class="p-3">Lokasi</th>
+                                    <th class="p-3">Koordinat</th>
+                                    <th class="p-3 text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body-tiang" class="divide-y divide-slate-100 text-slate-700">
+                                <!-- Data injected via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-odc" class="tab-content space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Form Input -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-fit">
+                    <h2 id="form-title-odc" class="text-base font-bold text-slate-800 mb-4 flex items-center space-x-2">
+                        <i class="fa-solid fa-plus-circle text-indigo-600"></i>
+                        <span>Tambah Data ODC</span>
+                    </h2>
+                    <form id="form-odc" onsubmit="saveData(event, 'odc')" class="space-y-4">
+                        <input type="hidden" id="odc-id">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Kode ODC</label>
+                            <input type="text" id="odc-kode" required placeholder="Contoh: ODC-SOR-01" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Lokasi ODC</label>
+                            <input type="text" id="odc-lokasi" required placeholder="Contoh: Taman Kota / Pinggir Jalan Raya" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Latitude</label>
+                                <input type="number" step="any" id="odc-lat" placeholder="-0.8900" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Longitude</label>
+                                <input type="number" step="any" id="odc-lng" placeholder="131.2500" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                        </div>
+                        <div class="flex space-x-2 pt-2">
+                            <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-sm transition shadow-sm">Simpan Data</button>
+                            <button type="button" onclick="resetForm('odc')" class="hidden id-cancel-odc bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium px-4 py-2.5 rounded-xl text-sm transition">Batal</button>
+                        </div>
+                    </form>
+                </div>
+                <!-- Table Rekapitulasi -->
+                <div class="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-4">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                        <h2 class="text-base font-bold text-slate-800">Daftar Rekapitulasi ODC</h2>
+                        <div class="w-full sm:w-64">
+                            <input type="text" id="search-odc" onkeyup="filterTable('odc')" placeholder="Cari ODC..." class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto rounded-xl border border-slate-100">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead>
+                                <tr class="bg-slate-100 text-slate-600 text-xs font-semibold uppercase">
+                                    <th class="p-3">No</th>
+                                    <th class="p-3">Kode ODC</th>
+                                    <th class="p-3">Lokasi</th>
+                                    <th class="p-3">Koordinat</th>
+                                    <th class="p-3 text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body-odc" class="divide-y divide-slate-100 text-slate-700">
+                                <!-- Data injected via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-odp" class="tab-content space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Form Input -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-fit">
+                    <h2 id="form-title-odp" class="text-base font-bold text-slate-800 mb-4 flex items-center space-x-2">
+                        <i class="fa-solid fa-plus-circle text-indigo-600"></i>
+                        <span>Tambah Data ODP</span>
+                    </h2>
+                    <form id="form-odp" onsubmit="saveData(event, 'odp')" class="space-y-4">
+                        <input type="hidden" id="odp-id">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Kode ODP</label>
+                            <input type="text" id="odp-kode" required placeholder="Contoh: ODP-SOR-01-01" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Lokasi ODP</label>
+                            <input type="text" id="odp-lokasi" required placeholder="Contoh: Tiang TGN-015 / RT 02" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Latitude</label>
+                                <input type="number" step="any" id="odp-lat" placeholder="-0.8920" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Longitude</label>
+                                <input type="number" step="any" id="odp-lng" placeholder="131.2520" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                        </div>
+                        <div class="flex space-x-2 pt-2">
+                            <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-sm transition shadow-sm">Simpan Data</button>
+                            <button type="button" onclick="resetForm('odp')" class="hidden id-cancel-odp bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium px-4 py-2.5 rounded-xl text-sm transition">Batal</button>
+                        </div>
+                    </form>
+                </div>
+                <!-- Table Rekapitulasi -->
+                <div class="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-4">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                        <h2 class="text-base font-bold text-slate-800">Daftar Rekapitulasi ODP</h2>
+                        <div class="w-full sm:w-64">
+                            <input type="text" id="search-odp" onkeyup="filterTable('odp')" placeholder="Cari ODP..." class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto rounded-xl border border-slate-100">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead>
+                                <tr class="bg-slate-100 text-slate-600 text-xs font-semibold uppercase">
+                                    <th class="p-3">No</th>
+                                    <th class="p-3">Kode ODP</th>
+                                    <th class="p-3">Lokasi</th>
+                                    <th class="p-3">Koordinat</th>
+                                    <th class="p-3 text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body-odp" class="divide-y divide-slate-100 text-slate-700">
+                                <!-- Data injected via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-rumah" class="tab-content space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Form Input -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-fit">
+                    <h2 id="form-title-rumah" class="text-base font-bold text-slate-800 mb-4 flex items-center space-x-2">
+                        <i class="fa-solid fa-plus-circle text-indigo-600"></i>
+                        <span>Tambah Data Rumah (Homepass)</span>
+                    </h2>
+                    <form id="form-rumah" onsubmit="saveData(event, 'rumah')" class="space-y-4">
+                        <input type="hidden" id="rumah-id">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Kode Rumah / Pelanggan</label>
+                            <input type="text" id="rumah-kode" required placeholder="Contoh: HP-001" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Lokasi Rumah</label>
+                            <input type="text" id="rumah-lokasi" required placeholder="Contoh: Jl. Kenanga No. 12" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Latitude</label>
+                                <input type="number" step="any" id="rumah-lat" placeholder="-0.8930" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Longitude</label>
+                                <input type="number" step="any" id="rumah-lng" placeholder="131.2530" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                        </div>
+                        <div class="flex space-x-2 pt-2">
+                            <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-sm transition shadow-sm">Simpan Data</button>
+                            <button type="button" onclick="resetForm('rumah')" class="hidden id-cancel-rumah bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium px-4 py-2.5 rounded-xl text-sm transition">Batal</button>
+                        </div>
+                    </form>
+                </div>
+                <!-- Table Rekapitulasi -->
+                <div class="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-4">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                        <h2 class="text-base font-bold text-slate-800">Daftar Rekapitulasi Rumah (Homepass)</h2>
+                        <div class="w-full sm:w-64">
+                            <input type="text" id="search-rumah" onkeyup="filterTable('rumah')" placeholder="Cari rumah..." class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto rounded-xl border border-slate-100">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead>
+                                <tr class="bg-slate-100 text-slate-600 text-xs font-semibold uppercase">
+                                    <th class="p-3">No</th>
+                                    <th class="p-3">Kode Rumah</th>
+                                    <th class="p-3">Lokasi</th>
+                                    <th class="p-3">Koordinat</th>
+                                    <th class="p-3 text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body-rumah" class="divide-y divide-slate-100 text-slate-700">
+                                <!-- Data injected via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <div id="export-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
+            <div class="flex justify-between items-center">
+                <h3 class="text-base font-bold text-slate-800">Ekspor & Impor Data</h3>
+                <button onclick="closeExportModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <p class="text-xs text-slate-500">Cadangkan atau muat kembali seluruh data perencanaan Anda dalam format JSON.</p>
+            <div class="space-y-3 pt-2">
+                <button onclick="exportDataJSON()" class="w-full flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-sm transition">
+                    <i class="fa-solid fa-download"></i>
+                    <span>Ekspor ke File JSON</span>
+                </button>
+                <button onclick="printReport()" class="w-full flex items-center justify-center space-x-2 bg-slate-800 hover:bg-slate-900 text-white font-medium py-2.5 rounded-xl text-sm transition">
+                    <i class="fa-solid fa-print"></i>
+                    <span>Cetak Laporan Rekap</span>
+                </button>
+                <div class="border-t border-slate-200 pt-3">
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Impor Data dari File JSON</label>
+                    <input type="file" id="import-file" accept=".json" onchange="importDataJSON(event)" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-lg text-sm flex items-center space-x-2">
+        <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span id="toast-msg">Berhasil menyimpan data</span>
+    </div>
+
+    <script>
+        // Database state stored in localStorage
+        let db = JSON.parse(localStorage.getItem('netplan_db')) || {
+            kabel: [
+                { id: 1, jenis: 'FO 24 Core', panjang: 1200, lokasi: 'Jl. Jend. Sudirman' },
+                { id: 2, jenis: 'Drop Cable 1 Core', panjang: 350, lokasi: 'Komplek Perumahan Indah' }
+            ],
+            tiang: [
+                { id: 1, kode: 'TGN-001', lokasi: 'Depan Kantor Bupati', lat: -0.8915, lng: 131.2512 },
+                { id: 2, kode: 'TGN-002', lokasi: 'Pertigaan Pasar Baru', lat: -0.8935, lng: 131.2545 }
+            ],
+            odc: [
+                { id: 1, kode: 'ODC-SOR-01', lokasi: 'Taman Makam Pahlawan', lat: -0.8905, lng: 131.2505 }
+            ],
+            odp: [
+                { id: 1, kode: 'ODP-SOR-01-01', lokasi: 'Tiang TGN-001', lat: -0.8916, lng: 131.2513 },
+                { id: 2, kode: 'ODP-SOR-01-02', lokasi: 'Tiang TGN-002', lat: -0.8936, lng: 131.2546 }
+            ],
+            rumah: [
+                { id: 1, kode: 'HP-101', lokasi: 'Jl. Jend. Sudirman No. 12', lat: -0.8918, lng: 131.2515 },
+                { id: 2, kode: 'HP-102', lokasi: 'Jl. Jend. Sudirman No. 14', lat: -0.8920, lng: 131.2518 },
+                { id: 3, kode: 'HP-103', lokasi: 'Komplek Pasar Baru Blok A', lat: -0.8940, lng: 131.2550 }
+            ]
+        };
+
+        let map = null;
+        let markersLayer = null;
+
+        // Initialize application on load
+        window.onload = function() {
+            renderAllTables();
+            updateStats();
+            // Delay map init slightly to ensure tab visibility works properly
+            setTimeout(() => {
+                initMap();
+            }, 300);
+        };
+
+        // Tab Switching Function
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('bg-indigo-600', 'text-white', 'shadow-sm');
+                el.classList.add('text-slate-600', 'hover:bg-slate-100');
+            });
+
+            document.getElementById('tab-' + tabId).classList.add('active');
+            const activeBtn = document.getElementById('btn-' + tabId);
+            activeBtn.classList.add('bg-indigo-600', 'text-white', 'shadow-sm');
+            activeBtn.classList.remove('text-slate-600', 'hover:bg-slate-100');
+
+            if (tabId === 'dashboard') {
+                setTimeout(() => {
+                    if (map) map.invalidateSize();
+                }, 100);
+            }
+        }
+
+        // Show Toast Notification
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toast-icon');
+            const msg = document.getElementById('toast-msg');
+
+            msg.textContent = message;
+            if (isError) {
+                icon.className = "fa-solid fa-circle-exclamation text-rose-400";
+            } else {
+                icon.className = "fa-solid fa-circle-check text-emerald-400";
+            }
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        // Save Data (Create or Update)
+        function saveData(event, type) {
+            event.preventDefault();
+            const idInput = document.getElementById(`${type}-id`).value;
+
+            if (type === 'kabel') {
+                const jenis = document.getElementById('kabel-jenis').value;
+                const panjang = parseFloat(document.getElementById('kabel-panjang').value);
+                const lokasi = document.getElementById('kabel-lokasi').value;
+
+                if (idInput) {
+                    // Update
+                    const item = db.kabel.find(x => x.id == idInput);
+                    if (item) { item.jenis = jenis; item.panjang = panjang; item.lokasi = lokasi; }
+                    showToast('Data kabel berhasil diperbarui');
+                } else {
+                    // Create
+                    const newId = db.kabel.length > 0 ? Math.max(...db.kabel.map(x => x.id)) + 1 : 1;
+                    db.kabel.push({ id: newId, jenis, panjang, lokasi });
+                    showToast('Data kabel berhasil ditambahkan');
+                }
+            } else {
+                const kode = document.getElementById(`${type}-kode`).value;
+                const lokasi = document.getElementById(`${type}-lokasi`).value;
+                const lat = parseFloat(document.getElementById(`${type}-lat`).value) || 0;
+                const lng = parseFloat(document.getElementById(`${type}-lng`).value) || 0;
+
+                if (idInput) {
+                    const item = db[type].find(x => x.id == idInput);
+                    if (item) { item.kode = kode; item.lokasi = lokasi; item.lat = lat; item.lng = lng; }
+                    showToast(`Data ${type.toUpperCase()} berhasil diperbarui`);
+                } else {
+                    const newId = db[type].length > 0 ? Math.max(...db[type].map(x => x.id)) + 1 : 1;
+                    db[type].push({ id: newId, kode, lokasi, lat, lng });
+                    showToast(`Data ${type.toUpperCase()} berhasil ditambahkan`);
+                }
+            }
+
+            persistAndRefresh(type);
+            resetForm(type);
+        }
+
+        // Persist to LocalStorage and Refresh UI
+        function persistAndRefresh(type) {
+            localStorage.setItem('netplan_db', JSON.stringify(db));
+            renderTable(type);
+            updateStats();
+            initMap();
+        }
+
+        // Render Individual Table
+        function renderTable(type, filterText = '') {
+            const tbody = document.getElementById(`table-body-${type}`);
+            tbody.innerHTML = '';
+
+            let data = db[type];
+            if (filterText) {
+                data = data.filter(item => {
+                    if (type === 'kabel') {
+                        return item.jenis.toLowerCase().includes(filterText) || item.lokasi.toLowerCase().includes(filterText);
+                    } else {
+                        return item.kode.toLowerCase().includes(filterText) || item.lokasi.toLowerCase().includes(filterText);
+                    }
+                });
+            }
+
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400 text-xs">Belum ada data tersedia.</td></tr>`;
+                return;
+            }
+
+            data.forEach((item, index) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition";
+                
+                if (type === 'kabel') {
+                    tr.innerHTML = `
+                        <td class="p-3 text-xs text-slate-500">${index + 1}</td>
+                        <td class="p-3 font-medium text-slate-800">${item.jenis}</td>
+                        <td class="p-3 text-slate-600">${item.panjang} m</td>
+                        <td class="p-3 text-slate-600">${item.lokasi}</td>
+                        <td class="p-3 text-center space-x-2">
+                            <button onclick="editData('kabel', ${item.id})" class="text-indigo-600 hover:text-indigo-800 p-1" title="Edit"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button onclick="deleteData('kabel', ${item.id})" class="text-rose-500 hover:text-rose-700 p-1" title="Hapus"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    `;
+                } else {
+                    tr.innerHTML = `
+                        <td class="p-3 text-xs text-slate-500">${index + 1}</td>
+                        <td class="p-3 font-medium text-slate-800">${item.kode}</td>
+                        <td class="p-3 text-slate-600">${item.lokasi}</td>
+                        <td class="p-3 text-xs text-slate-500">${item.lat || 0}, ${item.lng || 0}</td>
+                        <td class="p-3 text-center space-x-2">
+                            <button onclick="editData('${type}', ${item.id})" class="text-indigo-600 hover:text-indigo-800 p-1" title="Edit"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button onclick="deleteData('${type}', ${item.id})" class="text-rose-500 hover:text-rose-700 p-1" title="Hapus"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    `;
+                }
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Render All Tables
+        function renderAllTables() {
+            ['kabel', 'tiang', 'odc', 'odp', 'rumah'].forEach(type => renderTable(type));
+        }
+
+        // Filter Table Search
+        function filterTable(type) {
+            const query = document.getElementById(`search-${type}`).value.toLowerCase();
+            renderTable(type, query);
+        }
+
+        // Edit Data
+        function editData(type, id) {
+            const item = db[type].find(x => x.id == id);
+            if (!item) return;
+
+            document.getElementById(`${type}-id`).value = item.id;
+            document.getElementById(`form-title-${type}`).innerHTML = `<i class="fa-solid fa-pen-to-square text-indigo-600"></i><span>Edit Data ${type.toUpperCase()}</span>`;
+            document.querySelector(`.id-cancel-${type}`).classList.remove('hidden');
+
+            if (type === 'kabel') {
+                document.getElementById('kabel-jenis').value = item.jenis;
+                document.getElementById('kabel-panjang').value = item.panjang;
+                document.getElementById('kabel-lokasi').value = item.lokasi;
+            } else {
+                document.getElementById(`${type}-kode`).value = item.kode;
+                document.getElementById(`${type}-lokasi`).value = item.lokasi;
+                document.getElementById(`${type}-lat`).value = item.lat || '';
+                document.getElementById(`${type}-lng`).value = item.lng || '';
+            }
+        }
+
+        // Reset Form
+        function resetForm(type) {
+            document.getElementById(`form-${type}`).reset();
+            document.getElementById(`${type}-id`).value = '';
+            document.getElementById(`form-title-${type}`).innerHTML = `<i class="fa-solid fa-plus-circle text-indigo-600"></i><span>Tambah Data ${type.toUpperCase()}</span>`;
+            const cancelBtn = document.querySelector(`.id-cancel-${type}`);
+            if (cancelBtn) cancelBtn.classList.add('hidden');
+        }
+
+        // Delete Data
+        function deleteData(type, id) {
+            if (confirm(`Apakah Anda yakin ingin menghapus data ${type} ini?`)) {
+                db[type] = db[type].filter(x => x.id != id);
+                persistAndRefresh(type);
+                showToast('Data berhasil dihapus');
+            }
+        }
+
+        // Update Statistics Counter
+        function updateStats() {
+            const totalPanjangKabel = db.kabel.reduce((acc, curr) => acc + (parseFloat(curr.panjang) || 0), 0);
+            document.getElementById('stat-kabel').textContent = totalPanjangKabel.toLocaleString() + ' m';
+            document.getElementById('stat-tiang').textContent = db.tiang.length + ' Unit';
+            document.getElementById('stat-odc').textContent = db.odc.length + ' Unit';
+            document.getElementById('stat-odp').textContent = db.odp.length + ' Unit';
+            document.getElementById('stat-rumah').textContent = db.rumah.length + ' Unit';
+        }
+
+        // Initialize Leaflet Map
+        function initMap() {
+            const mapContainer = document.getElementById('map');
+            if (!mapContainer) return;
+
+            if (!map) {
+                // Default center coordinates (e.g. Sorong region or default)
+                map = L.map('map').setView([-0.8917, 131.2513], 14);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '&copy; OpenStreetMap contributors'
+                }).addTo(map);
+            }
+
+            if (markersLayer) {
+                map.removeLayer(markersLayer);
+            }
+
+            markersLayer = L.layerGroup().addTo(map);
+
+            const types = ['tiang', 'odc', 'odp', 'rumah'];
+            let bounds = [];
+
+            types.forEach(type => {
+                db[type].forEach(item => {
+                    if (item.lat && item.lng) {
+                        let color = '#3b82f6';
+                        let iconName = 'fa-circle';
+                        if (type === 'odc') { color = '#9333ea'; iconName = 'fa-box-archive'; }
+                        else if (type === 'odp') { color = '#10b981'; iconName = 'fa-boxes-stacked'; }
+                        else if (type === 'tiang') { color = '#f59e0b'; iconName = 'fa-tower-broadcast'; }
+                        else if (type === 'rumah') { color = '#f43f5e'; iconName = 'fa-house-chimney'; }
+
+                        const customIcon = L.divIcon({
+                            className: 'custom-map-icon',
+                            html: `<div style="background-color: ${color}; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.3); font-size: 11px;"><i class="fa-solid ${iconName}"></i></div>`,
+                            iconSize: [28, 28],
+                            iconAnchor: [14, 14]
+                        });
+
+                        const marker = L.marker([item.lat, item.lng], { icon: customIcon });
+                        marker.bindPopup(`<b>${type.toUpperCase()}: ${item.kode || ''}</b><br>${item.lokasi}`);
+                        markersLayer.addLayer(marker);
+                        bounds.push([item.lat, item.lng]);
+                    }
+                });
+            });
+
+            if (bounds.length > 0) {
+                map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+            }
+        }
+
+        // Reset All Data
+        function resetAllData() {
+            if (confirm('PERINGATAN: Semua data perencanaan akan direset ke awal. Lanjutkan?')) {
+                localStorage.removeItem('netplan_db');
+                location.reload();
+            }
+        }
+
+        // Export Modal Control
+        function openExportModal() {
+            document.getElementById('export-modal').classList.remove('hidden');
+        }
+        function closeExportModal() {
+            document.getElementById('export-modal').classList.add('hidden');
+        }
+
+        // Export JSON File
+        function exportDataJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db, null, 2));
+            const dlAnchor = document.createElement('a');
+            dlAnchor.setAttribute("href", dataStr);
+            dlAnchor.setAttribute("download", "perencanaan_jaringan_fo.json");
+            document.body.appendChild(dlAnchor);
+            dlAnchor.click();
+            dlAnchor.remove();
+            closeExportModal();
+            showToast('Data berhasil diekspor ke JSON');
+        }
+
+        // Import JSON File
+        function importDataJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (imported && imported.kabel && imported.tiang) {
+                        db = imported;
+                        localStorage.setItem('netplan_db', JSON.stringify(db));
+                        renderAllTables();
+                        updateStats();
+                        initMap();
+                        closeExportModal();
+                        showToast('Data berhasil diimpor!');
+                    } else {
+                        showToast('Format file JSON tidak valid', true);
+                    }
+                } catch(err) {
+                    showToast('Gagal membaca file JSON', true);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // Print Report
+        function printReport() {
+            window.print();
+        }
+    </script>
+</body>
+</html>
